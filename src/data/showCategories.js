@@ -1,6 +1,6 @@
 export const GENRES = [
   { id: 10759, name: 'Action & Adventure' }, { id: 16, name: 'Animation' }, { id: 35, name: 'Comedy' }, { id: 80, name: 'Crime' },
-  { id: 99, name: 'Documentary' }, { id: 18, name: 'Drama' }, { id: 10751, name: 'Family' }, { id: 10762, name: 'Kids' },
+  { id: 18, name: 'Drama' }, { id: 10751, name: 'Family' }, { id: 10762, name: 'Kids' },
   { id: 9648, name: 'Mystery' }, { id: 10764, name: 'Reality' }, { id: 10765, name: 'Sci-Fi & Fantasy' }, { id: 37, name: 'Western' },
 ]
 export const DECADES = [
@@ -15,4 +15,64 @@ export const CHANNEL_GROUPS = {
   streaming: { name: 'Streaming', subtitle: 'Netflix • Hulu • Prime • Apple TV+ • Paramount+ • Peacock', networkIds: [213, 453, 1024, 2552, 4330, 3353] },
 }
 export function randomCategory(exclude = null) { const pool = []; for (const genre of GENRES) for (const decade of DECADES) { const key = `${genre.id}-${decade.label}`; if (key !== exclude) pool.push({ genre, decade, key }) }; return pool[Math.floor(Math.random() * pool.length)] }
-export function dailyCategories() { const today = new Date().toISOString().slice(0, 10); let seed = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0); return Array.from({ length: 6 }, (_, index) => { seed = (seed * 9301 + 49297) % 233280; const genre = GENRES[(seed + index) % GENRES.length]; const decade = DECADES[(seed * 7 + index) % DECADES.length]; return { genre, decade, key: `${genre.id}-${decade.label}` } }) }
+
+function makePool(genres, decades) {
+  return genres.flatMap((genre) => decades.map((decade) => ({
+    genre,
+    decade,
+    key: `${genre.id}-${decade.label}`,
+  })))
+}
+
+function seededNumber(text) {
+  let value = 2166136261
+  for (const character of text) {
+    value ^= character.charCodeAt(0)
+    value = Math.imul(value, 16777619)
+  }
+  return value >>> 0
+}
+
+export function categoryForMode(channelGroup, exclude = null) {
+  let genres = GENRES
+  let decades = DECADES
+
+  if (channelGroup === 'broadcast') decades = DECADES.slice(1)
+  if (channelGroup === 'premium') {
+    genres = GENRES.filter((genre) => ![10762, 37].includes(genre.id))
+    decades = DECADES.slice(3)
+  }
+  if (channelGroup === 'streaming') {
+    genres = GENRES.filter((genre) => ![10762, 10764, 37].includes(genre.id))
+    decades = DECADES.slice(6)
+  }
+
+  const pool = makePool(genres, decades).filter((item) => item.key !== exclude)
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+export function dailyCategories() {
+  const today = new Date().toISOString().slice(0, 10)
+  const genres = GENRES.filter((genre) => ![10762, 10764, 37].includes(genre.id))
+  const decades = DECADES.slice(2)
+  const seed = seededNumber(today)
+  const lockGenre = seed % 2 === 0
+  const fixedGenre = genres[seed % genres.length]
+  const fixedDecade = decades[seed % decades.length]
+
+  return Array.from({ length: 30 }, (_, index) => {
+    const genre = lockGenre
+      ? fixedGenre
+      : genres[(seed + index) % genres.length]
+    const decade = lockGenre
+      ? decades[(seed + index) % decades.length]
+      : fixedDecade
+
+    return {
+      genre,
+      decade,
+      key: `${genre.id}-${decade.label}`,
+      challengeType: lockGenre ? 'genre' : 'decade',
+    }
+  })
+}
