@@ -4,24 +4,38 @@ export const GENRES = [
   { id: 9648, name: 'Mystery' }, { id: 10764, name: 'Reality' }, { id: 10765, name: 'Sci-Fi & Fantasy' }, { id: 37, name: 'Western' },
 ]
 export const DECADES = [
-  { label: '1950s', start: '1950-01-01', end: '1959-12-31' }, { label: '1960s', start: '1960-01-01', end: '1969-12-31' },
-  { label: '1970s', start: '1970-01-01', end: '1979-12-31' }, { label: '1980s', start: '1980-01-01', end: '1989-12-31' },
+  { label: '1960s', start: '1960-01-01', end: '1969-12-31' }, { label: '1970s', start: '1970-01-01', end: '1979-12-31' },
+  { label: '1980s', start: '1980-01-01', end: '1989-12-31' },
   { label: '1990s', start: '1990-01-01', end: '1999-12-31' }, { label: '2000s', start: '2000-01-01', end: '2009-12-31' },
   { label: '2010s', start: '2010-01-01', end: '2019-12-31' }, { label: '2020s', start: '2020-01-01', end: '2029-12-31' },
 ]
+const DECADE_WEIGHTS = {
+  '1960s': 6,
+  '1970s': 10,
+  '1980s': 14,
+  '1990s': 18,
+  '2000s': 20,
+  '2010s': 18,
+  '2020s': 14,
+}
 export const CHANNEL_GROUPS = {
   broadcast: { name: 'Broadcast', subtitle: 'ABC • CBS • NBC • FOX', networkIds: [2, 16, 6, 19] },
   premium: { name: 'Premium', subtitle: 'HBO • Showtime • Starz', networkIds: [49, 67, 318] },
   streaming: { name: 'Streaming', subtitle: 'Netflix • Hulu • Prime • Apple TV+ • Paramount+ • Peacock', networkIds: [213, 453, 1024, 2552, 4330, 3353] },
 }
-export function randomCategory(exclude = null) { const pool = []; for (const genre of GENRES) for (const decade of DECADES) { const key = `${genre.id}-${decade.label}`; if (key !== exclude) pool.push({ genre, decade, key }) }; return pool[Math.floor(Math.random() * pool.length)] }
-
 function makePool(genres, decades) {
-  return genres.flatMap((genre) => decades.map((decade) => ({
-    genre,
-    decade,
-    key: `${genre.id}-${decade.label}`,
-  })))
+  return genres.flatMap((genre) => decades.flatMap((decade) =>
+    Array.from({ length: DECADE_WEIGHTS[decade.label] }, () => ({
+      genre,
+      decade,
+      key: `${genre.id}-${decade.label}`,
+    })),
+  ))
+}
+
+export function randomCategory(exclude = null) {
+  const pool = makePool(GENRES, DECADES).filter((item) => item.key !== exclude)
+  return pool[Math.floor(Math.random() * pool.length)]
 }
 
 function seededNumber(text) {
@@ -37,14 +51,13 @@ export function categoryForMode(channelGroup, exclude = null) {
   let genres = GENRES
   let decades = DECADES
 
-  if (channelGroup === 'broadcast') decades = DECADES.slice(1)
   if (channelGroup === 'premium') {
     genres = GENRES.filter((genre) => ![10762, 37].includes(genre.id))
-    decades = DECADES.slice(3)
+    decades = DECADES.filter((decade) => Number(decade.label.slice(0, 4)) >= 1980)
   }
   if (channelGroup === 'streaming') {
     genres = GENRES.filter((genre) => ![10762, 10764, 37].includes(genre.id))
-    decades = DECADES.slice(6)
+    decades = DECADES.filter((decade) => Number(decade.label.slice(0, 4)) >= 2010)
   }
 
   const pool = makePool(genres, decades).filter((item) => item.key !== exclude)
@@ -54,11 +67,14 @@ export function categoryForMode(channelGroup, exclude = null) {
 export function dailyCategories() {
   const today = new Date().toISOString().slice(0, 10)
   const genres = GENRES.filter((genre) => ![10762, 10764, 37].includes(genre.id))
-  const decades = DECADES.slice(2)
+  const decades = DECADES
+  const weightedDecades = decades.flatMap((decade) =>
+    Array.from({ length: DECADE_WEIGHTS[decade.label] }, () => decade),
+  )
   const seed = seededNumber(today)
   const lockGenre = seed % 2 === 0
   const fixedGenre = genres[seed % genres.length]
-  const fixedDecade = decades[seed % decades.length]
+  const fixedDecade = weightedDecades[seed % weightedDecades.length]
 
   return Array.from({ length: 30 }, (_, index) => {
     const genre = lockGenre

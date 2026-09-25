@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CHANNEL_GROUPS, categoryForMode, dailyCategories } from '../data/showCategories'
 import { getShowChoices } from '../services/tmdb'
 import ShowCard from './ShowCard'
+import ResultsScreen from './ResultsScreen'
 
 export default function ShowSelection({ mode, channelGroup, onExit }) {
   const daily = useMemo(() => dailyCategories(), [])
@@ -51,7 +52,7 @@ export default function ShowSelection({ mode, channelGroup, onExit }) {
     }
   }
 
-  if (lineup.length === 6) return <main className="game-shell results-screen"><p className="game-kicker">The final lineup</p><h1>That's Must-See TV</h1><div className="lineup-grid">{lineup.map((show) => <ShowCard key={show.id} show={show} inert />)}</div><button className="primary-button" type="button" onClick={onExit}>Build another lineup</button></main>
+  if (lineup.length === 6) return <ResultsScreen lineup={lineup} onRestart={onExit} />
 
   return <main className="game-shell">
     <header className="selection-header">
